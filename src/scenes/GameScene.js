@@ -8,8 +8,8 @@ class GameScene extends Phaser.Scene {
     }
 
     create(){
-        this.worldWidth = 3200;
-        this.worldHeight = 3200;
+        this.worldWidth = 8000;
+        this.worldHeight = 8000;
 
         this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
 
@@ -84,11 +84,22 @@ class GameScene extends Phaser.Scene {
     }
 
     createWater(){
+        this.waterBodies = [];
+        const lakes = [
+            {x: 400, y: 400, r: 120},
+            {x: 2800, y: 1200, r: 180},
+            {x: 1600, y: 2600, r: 150},
+            {x: 5000, y: 3000, r: 200},
+            {x: 6500, y: 5000, r: 160},
+            {x: 3000, y: 6000, r: 140},
+        ];
         this.waterGraphics = this.add.graphics();
         this.waterGraphics.fillStyle(0x1a6b9a);
-        this.waterGraphics.fillCircle(400, 400, 120);
-        this.waterGraphics.fillCircle(2800, 1200, 180);
-        this.waterGraphics.fillCircle(1600, 2600, 150);
+
+        lakes.forEach(lake => {
+            this.waterGraphics.fillCircle(lake.x, lake.y, lake.r);
+            this.waterBodies.push(lake);
+        });
     }
 
     update(){
@@ -108,5 +119,16 @@ class GameScene extends Phaser.Scene {
         }else if(this.cursors.down.isDown || this.wasd.down.isDown){
             body.setVelocityY(speed);
         }
+
+        this.waterBodies.forEach(lake => {
+            const dx = this.player.x - lake.x;
+            const dy = this.player.y - lake.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < lake.r + 20){
+                const angle = Math.atan2(dy, dx);
+                this.player.x = lake.x + Math.cos(angle) * (lake.r + 21);
+                this.player.y = lake.y + Math.sin(angle) * (lake.r + 21);
+            }
+        });
     }
 }
