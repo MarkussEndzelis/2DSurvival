@@ -19,9 +19,10 @@ class GameScene extends Phaser.Scene {
 
         this.createPlayer();
 
+        
+        this.createWater();
         this.createTrees();
         this.createRocks();
-        this.createWater();
         this.physics.add.collider(this.player, this.trees);
         this.physics.add.collider(this.player, this.rocks);
 
@@ -62,13 +63,24 @@ class GameScene extends Phaser.Scene {
     
     createTrees(){
         this.trees = this.physics.add.staticGroup();
-        for (let i = 0; i < 200; i++){
-            const x = Phaser.Math.Between(50, this.worldWidth - 50);
-            const y = Phaser.Math.Between(50, this.worldheight - 50);
-            const trunk = this.add.rectangle(x, y, 16, 16, 0x5c3d1e);
-            const leaves = this.add.circle(x, y - 20, 24, 0x2d7a2d);
-            this.trees.add(trunk);
-            trunk.setData('type', 'tree');
+
+        for (let i = 0; i < 400; i++){
+            const x = Phaser.Math.Between(100, this.worldWidth - 100);
+            const y = Phaser.Math.Between(100, this.worldHeight - 100);
+
+            const nearWater = this.waterBodies.some(lake => {
+                const dx = x - lake.x;
+                const dy = y - lake.y;
+                return Math.sqrt(dx * dx + dy * dy) < lake.r + 40;
+            });
+            if (nearWater){
+                continue;
+            }
+            const leaves = this.add.circle(x, y - 20, 22, 0x2d7a2d);
+            const trunk = this.add.rectangle(x, y + 5, 10, 16, 0x5c3d1e);
+            const body = this.add.rectangle(x, y, 10, 10, 0x000000, 0);
+            this.trees.add(body);
+            this.physics.add.existing(body, true);
         }
     }
 
