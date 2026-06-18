@@ -35,6 +35,10 @@ class GameScene extends Phaser.Scene {
             left: Phaser.Input.Keyboard.KeyCodes.A,
             right: Phaser.Input.Keyboard.KeyCodes.D
         });
+        this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+        this.inventory = {wood: 0, stone: 0, food: 0};
+        this.createFood();
+        this.createUI();
     }
     createGround(){
         this.groundGraphics = this.add.graphics();
@@ -82,6 +86,65 @@ class GameScene extends Phaser.Scene {
             this.trees.add(body);
             this.physics.add.existing(body, true);
         }
+    }
+
+    createFood(){
+        this.foodItems = [];
+        const foodTypes = [
+            {name: 'apple', color: 0xff3333},
+            {name: 'banana', color: 0xffee00},
+            {name: 'berries', color: 0x9b30ff},
+            {name: 'potato', color: 0xc8a96e},
+        ];
+
+        for (let i = 0; i < 150; i++){
+            const x = Phaser.Math.Between(100, this.worldWidth - 100);
+            const y = Phaser.Math.Between(100, this.worldHeight - 100);
+            const type = Phaser.Math.RND.pick(foodTypes);
+
+            const nearWater = this.waterBodies.some(lake => {
+                const dx = x - lake.x;
+                const dy = y - lake.y;
+                return Math.sqrt(dx * dx + dy * dy) < lake.r + 40;
+            });
+            if(nearWater){
+                continue;
+            }
+
+            const sprite = this.add.circle(x, y, 7, type.color);
+            sprite.setData('type', type.name);
+            this.foodItems.push(sprite);
+        }
+    }
+
+    createUI(){
+        this.uiContainer = this.add.container(0, 0).setScrollFactor(0).setDepth(10);
+
+        const barBg = this.add.rectangle(
+            window.innerWidth / 2, window.innerHeight - 40, 400, 50, 0x000000, 0.6
+        );
+        this.uiContainer.add(barBg);
+
+        this.woodText = this.add.text(
+            window.innerWidth / 2 - 150, window.innerHeight - 52,
+            '🪵Wood: 0', {fontSize: '16px', fill: '#ffffff'}
+        );
+        this.stoneText = this.add.text(
+            window.innerWidth / 2 - 20, window.innerHeight - 52,
+            '🪨Stone: 0', {fontSize: '16px', fill: '#ffffff'}
+        );
+        this.foodText = this.add.text(
+            window.innerWidth / 2 + 110, window.innerHeight - 52,
+            '🍎Food: 0', {fontSize: '16px', fill: '#ffffff'}
+        );
+
+        this.uiContainer.add([this.woodText, this.stoneText, this.foodText]);
+    }
+
+    updateUI(){
+        this.woodText.setText(`🪵Wood: ${this.inventory.wood}`);
+        this.stoneText.setText(`🪨Stone: ${this.inventory.stone}`);
+        this.foodText.setText(`🍎Food: ${this.inventory.food}`);
     }
 
     createRocks(){
@@ -142,5 +205,39 @@ class GameScene extends Phaser.Scene {
                 this.player.y = lake.y + Math.sin(angle) * (lake.r + 21);
             }
         });
+        if (Phaser.Input.Keyboard.JustDown(this.eKey)){
+            this.trees.getChildren().forEach(body => {
+                const dx = this.player.x - body.x;
+                const dy = this.player.y - body.y;
+                if (Math.sqrt(dx * dx + dy * dy) < 60){
+                    body.destroy();
+                    this.inventory.wood += 1;
+                    this.updateUI();
+                }
+            });
+
+            this.rocks.getChildren().forEach(body => {
+                const dx = this.player.x - body.x;
+                const dy = this.player.y - body.y;
+                if(Math.sqrt(dx * dx + dy * dy) < 60){
+                    body.destroy();
+                    this.inventory.stone += 1;
+                    this.updateUI();
+                }
+            });
+            this.foodItems.forEach((food, index) => {
+                if (!food.active){
+                    return;
+                }
+                const dx = this.player.x - food.x;
+                const dy = this.player.y - food.y;
+                if(Math.sqrt(dx * dx + dy * dy) < 60){
+                    food.destroy();
+                    this.foodItems.splice(index, 1);
+                    this.inventory.food += 1;
+                    this.updateUI();
+                }
+            });
+        }
     }
 }
