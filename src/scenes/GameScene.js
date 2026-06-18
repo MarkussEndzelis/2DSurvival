@@ -249,6 +249,15 @@ class GameScene extends Phaser.Scene {
                     this.updateUI();
                 }
             });
+            this.waterBodies.forEach(lake => {
+                const dx = this.player.x - lake.x;
+                const dy = this.player.y - lake.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if(dist < lake.r + 60){
+                    this.stats.thirst = Math.min(100, this.stats.thirst + 40);
+                    this.updateStatBars();
+                }
+            });
         }
         const now = this.time.now;
         if(now - this.lastStatTick > 2000){
