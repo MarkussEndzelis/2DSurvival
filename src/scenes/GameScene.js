@@ -39,6 +39,16 @@ class GameScene extends Phaser.Scene {
         this.inventory = {wood: 0, stone: 0, food: 0};
         this.createFood();
         this.createUI();
+        this.createStatBars();
+
+        this.fKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
+
+        this.stats = {
+            health: 100,
+            hunger: 100,
+            thirst: 100
+        };
+        this.lastStatTick = 0;
     }
     createGround(){
         this.groundGraphics = this.add.graphics();
@@ -140,6 +150,7 @@ class GameScene extends Phaser.Scene {
 
         this.uiContainer.add([this.woodText, this.stoneText, this.foodText]);
     }
+    
 
     updateUI(){
         this.woodText.setText(`🪵Wood: ${this.inventory.wood}`);
@@ -239,5 +250,66 @@ class GameScene extends Phaser.Scene {
                 }
             });
         }
+        const now = this.time.now;
+        if(now - this.lastStatTick > 2000){
+            this.lastStatTick = now;
+            this.stats.hunger = Math.max(0, this.stats.hunger - 1);
+            this.stats.thirst = Math.max(0, this.stats.thirst - 1.5);
+            if(this.stats.hunger === 0 || this.stats.thirst === 0){
+                this.stats.health = Math.max(0, this.stats.health - 2);
+            }
+            this.updateStatBars();
+        }
+
+        if(Phaser.Input.Keyboard.JustDown(this.fKey)){
+            if(this.inventory.food > 0){
+                this.inventory.food -= 1;
+                this.stats.hunger = Math.min(100, this.stats.hunger + 30);
+                this.updateUI();
+                this.updateStatBars();
+            }
+        }
+    }
+    createStatBars(){
+        this.statsBg = this.add.rectangle(
+            window.innerWidth / 2, 30, 420, 30, 0x000000, 0.6
+        ).setScrollFactor(0).setDepth(10)
+
+        this.healthBarBg = this.add.rectangle(
+            window.innerWidth / 2 - 140, 30, 120, 14, 0x550000
+        ).setScrollFactor(0).setDepth(11);
+
+        this.healthBar = this.add.rectangle(
+            window.innerWidth / 2 - 140, 30, 120, 14, 0xff3333
+        ).setScrollFactor(0).setDepth(11);
+
+        this.healthLabel = this.add.text(
+            window.innerWidth / 2 - 200, 23, '❤️', {fontSize: '14px'}
+        ).setScrollFactor(0).setDepth(11);
+
+        this.hungerBarBg = this.add.rectangle(
+            window.innerWidth / 2, 30, 120, 14, 0x554400
+        ).setScrollFactor(0).setDepth(11);
+        this.hungerBar = this.add.rectangle(
+            window.innerWidth / 2, 30, 120, 14, 0xffaa00
+        ).setScrollFactor(0).setDepth(11)
+        this.hungerLabel = this.add.text(
+            window.innerWidth / 2 - 60, 23, '🍖', {fontSize: '14px'} 
+        ).setScrollFactor(0).setDepth(11);
+
+        this.thirstBarBg = this.add.rectangle(
+            window.innerWidth / 2 + 140, 30, 120, 14, 0x003355
+        ).setScrollFactor(0).setDepth(11);
+        this.thirstbar = this.add.rectangle(
+            window.innerWidth / 2 + 140, 30, 120, 14, 0x3399ff
+        ).setScrollFactor(0).setDepth(11);
+        this.thirstLabel = this.add.text(
+            window.innerWidth / 2 + 80, 23, '💧', {fontSize: '14px'}
+        ).setScrollFactor(0).setDepth(11);
+    }
+    updateStatBars(){
+        this.healthBar.width = (this.stats.health / 100) * 120;
+        this.hungerBar.width = (this.stats.hunger / 100) * 120;
+        this.thirstbar.width = (this.stats.thirst / 100) * 120;
     }
 }
