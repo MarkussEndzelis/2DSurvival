@@ -41,6 +41,19 @@ class GameScene extends Phaser.Scene {
         this.createUI();
         this.createStatBars();
 
+        this.dayDuration = 60000;
+        this.dayStart = this.time.now;
+
+        this.nightOverlay = this.add.rectangle(
+            0, 0, 
+            window.innerWidth * 3, window.innerHeight * 3, window.innerWidth, window.innerHeight, 0x000022, 0
+        ).setScrollFactor(0).setDepth(5).setOrigin(0, 0);
+
+        this.dayText = this.add.text(
+            20, 20, 'Day 1 | Dawn',
+            {fontSize: '14px', fill: '#ffffff'}
+        ).setScrollFactor(0).setDepth(11);
+
         this.fKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
 
         this.stats = {
@@ -268,6 +281,7 @@ class GameScene extends Phaser.Scene {
                 this.stats.health = Math.max(0, this.stats.health - 2);
             }
             this.updateStatBars();
+            this.updateDayNight();
         }
 
         if(Phaser.Input.Keyboard.JustDown(this.fKey)){
@@ -320,5 +334,30 @@ class GameScene extends Phaser.Scene {
         this.healthBar.width = (this.stats.health / 100) * 120;
         this.hungerBar.width = (this.stats.hunger / 100) * 120;
         this.thirstbar.width = (this.stats.thirst / 100) * 120;
+    }
+    updateDayNight(){
+        const elapsed = (this.time.now - this.dayStart) % this.dayDuration;
+        const pct = elapsed / this.dayDuration;
+
+        let alpha = 0;
+        let phase = '';
+        let dayCount = Math.floor((this.time.now - this.dayStart) / this.dayDuration) + 1;
+
+        if(pct < 0.25){
+            phase = 'Dawn';
+            alpha = 0.4 - (pct / 0.25) * 0.4;
+        }else if(pct < 0.5){
+            phase = 'Day';
+            alpha = 0;
+        }else if(pct < 0.75){
+            phase = 'Dusk';
+            alpha = ((pct - 0.5) / 0.25) * 0.7;
+        }else{
+            phase = 'Night';
+            alpha = 0.7;
+        }
+
+        this.nightOverlay.setAlpha(alpha);
+        this.dayText.setText(`Day ${dayCount} | ${phase}`);
     }
 }
