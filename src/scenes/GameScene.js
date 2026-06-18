@@ -19,6 +19,12 @@ class GameScene extends Phaser.Scene {
 
         this.createPlayer();
 
+        this.createTrees();
+        this.createRocks();
+        this.createWater();
+        this.physics.add.collider(this.player, this.trees);
+        this.physics.add.collider(this.player, this.rocks);
+
         this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
 
         this.cursors = this.input.keyboard.createCursorKeys();
@@ -52,6 +58,37 @@ class GameScene extends Phaser.Scene {
         );
         this.physics.add.existing(this.player);
         this.player.body.setCollideWorldBounds(true);
+    }
+    
+    createTrees(){
+        this.trees = this.physics.add.staticGroup();
+        for (let i = 0; i < 200; i++){
+            const x = Phaser.Math.Between(50, this.worldWidth - 50);
+            const y = Phaser.Math.Between(50, this.worldheight - 50);
+            const trunk = this.add.rectangle(x, y, 16, 16, 0x5c3d1e);
+            const leaves = this.add.circle(x, y - 20, 24, 0x2d7a2d);
+            this.trees.add(trunk);
+            trunk.setData('type', 'tree');
+        }
+    }
+
+    createRocks(){
+        this.rocks = this.physics.add.staticGroup();
+        for (let i = 0; i < 100; i++){
+            const x = Phaser.Math.Between(50, this.worldWidth - 50);
+            const y = Phaser.Math.Between(50, this.worldHeight - 50);
+            const rock = this.add.circle(x, y, 12, 0x888888);
+            this.rocks.add(rock);
+            rock.setData('type', 'rock');
+        }
+    }
+
+    createWater(){
+        this.waterGraphics = this.add.graphics();
+        this.waterGraphics.fillStyle(0x1a6b9a);
+        this.waterGraphics.fillCircle(400, 400, 120);
+        this.waterGraphics.fillCircle(2800, 1200, 180);
+        this.waterGraphics.fillCircle(1600, 2600, 150);
     }
 
     update(){
