@@ -45,9 +45,10 @@ class GameScene extends Phaser.Scene {
         this.dayStart = this.time.now;
 
         this.nightOverlay = this.add.rectangle(
-            0, 0, 
-            window.innerWidth * 3, window.innerHeight * 3, window.innerWidth, window.innerHeight, 0x000022, 0
-        ).setScrollFactor(0).setDepth(5).setOrigin(0, 0);
+            0, 0,
+            window.innerWidth * 2, window.innerHeight * 2,
+            0x000022
+        ).setScrollFactor(0).setDepth(5).setOrigin(0, 0).setAlpha(0);
 
         this.dayText = this.add.text(
             20, 20, 'Day 1 | Dawn',
@@ -281,7 +282,6 @@ class GameScene extends Phaser.Scene {
                 this.stats.health = Math.max(0, this.stats.health - 2);
             }
             this.updateStatBars();
-            this.updateDayNight();
         }
 
         if(Phaser.Input.Keyboard.JustDown(this.fKey)){
@@ -292,6 +292,7 @@ class GameScene extends Phaser.Scene {
                 this.updateStatBars();
             }
         }
+        this.updateDayNight();
     }
     createStatBars(){
         this.statsBg = this.add.rectangle(
@@ -323,7 +324,7 @@ class GameScene extends Phaser.Scene {
         this.thirstBarBg = this.add.rectangle(
             window.innerWidth / 2 + 140, 30, 120, 14, 0x003355
         ).setScrollFactor(0).setDepth(11);
-        this.thirstbar = this.add.rectangle(
+        this.thirstBar = this.add.rectangle(
             window.innerWidth / 2 + 140, 30, 120, 14, 0x3399ff
         ).setScrollFactor(0).setDepth(11);
         this.thirstLabel = this.add.text(
@@ -333,7 +334,7 @@ class GameScene extends Phaser.Scene {
     updateStatBars(){
         this.healthBar.width = (this.stats.health / 100) * 120;
         this.hungerBar.width = (this.stats.hunger / 100) * 120;
-        this.thirstbar.width = (this.stats.thirst / 100) * 120;
+        this.thirstBar.width = (this.stats.thirst / 100) * 120;
     }
     updateDayNight(){
         const elapsed = (this.time.now - this.dayStart) % this.dayDuration;
