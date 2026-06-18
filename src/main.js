@@ -31,5 +31,9 @@ window.addEventListener('resize', () => {
         scene.thirstBarBg.setPosition(window.innerWidth / 2 + 140, 30);
         scene.thirstBar.setPosition(window.innerWidth / 2 + 140, 30);
         scene.thirstLabel.setPosition(window.innerWidth / 2 + 80, 23);
+        scene.uiContainer.getAt(0).setPosition(window.innerWidth / 2, window.innerHeight - 40);
+        scene.woodText.setPosition(window.innerWidth / 2 - 150, window.innerHeight - 52);
+        scene.stoneText.setPosition(window.innerWidth / 2 - 20, window.innerHeight - 52);
+        scene.foodText.setPosition(window.innerWidth / 2 + 110, window.innerHeight - 52);
     }
 });

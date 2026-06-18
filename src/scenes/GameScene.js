@@ -38,6 +38,8 @@ class GameScene extends Phaser.Scene {
         this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
         this.inventory = {wood: 0, stone: 0, food: 0};
         this.createFood();
+        this.createAnimals();
+        this.input.on('pointerdown', (pointer) => this.handleAttack(pointer));
         this.createUI();
         this.createStatBars();
 
@@ -292,6 +294,7 @@ class GameScene extends Phaser.Scene {
                 this.updateStatBars();
             }
         }
+        this.updateAnimals();
         this.updateDayNight();
     }
     createStatBars(){
@@ -360,5 +363,207 @@ class GameScene extends Phaser.Scene {
 
         this.nightOverlay.setAlpha(alpha);
         this.dayText.setText(`Day ${dayCount} | ${phase}`);
+    }
+    createAnimals(){
+        this.animals = [];
+        const rabbitCount = Phaser.Math.Between(40, 70);
+        const wolfCount = Phaser.Math.Between(15, 30);
+
+        for(let i = 0; i < rabbitCount; i++){
+            const x = Phaser.Math.Between(200, this.worldWidth - 200);
+            const y = Phaser.Math.Between(200, this.worldHeight - 200);
+            this.animals.push(this.spawnRabbit(x, y));
+        }
+        for(let i = 0; i < wolfCount; i++){
+            const x = Phaser.Math.Between(200, this.worldWidth - 200);
+            const y = Phaser.Math.Between(200, this.worldHeight - 200);
+            this.animals.push(this.spawnWolf(x, y));
+        }
+    }
+
+    spawnRabbit(x, y){
+        const g = this.add.graphics();
+        const draw = (gfx, flip) => {
+        gfx.clear();
+        gfx.fillStyle(0xd4c9a8);
+        gfx.fillEllipse(0, 4, 14, 10);
+        
+        gfx.fillStyle(0xd4c9a8);
+        gfx.fillCircle(0, -4, 6);
+
+        gfx.fillStyle(0xd4c9a8);
+        gfx.fillRect(-4, -12, 3, 8);
+
+        gfx.fillStyle(0xd4c9a8);
+        gfx.fillRect(1, -12, 3, 8);
+
+        gfx.fillStyle(0xffaaaa);
+        gfx.fillRect(-3, -11, 1, 6);
+
+        gfx.fillStyle(0xffaaaa);
+        gfx.fillRect(2, -11, 1, 6);
+
+        gfx.fillStyle(0xff6666);
+        gfx.fillCircle(flip ? -3 : 3, -5, 1.5);
+
+        gfx.fillStyle(0xffffff);
+        gfx.fillCircle(flip ? 6 : -6, 5, 3);
+
+        gfx.fillStyle(0xc4b898);
+        gfx.fillRect(-5, 7, 3, 5);
+        gfx.fillRect(2, 7, 3, 5);
+        };
+        draw(g, false);
+        g.x = x;
+        g.y = y;
+
+        return {
+            gfx: g, x, y,
+            type: 'rabbit',
+            hp: 20,
+            speed: Phaser.Math.Between(120, 180),
+            fleeing: false,
+            fleeTarget: null,
+            flip: false,
+            active: true,
+            draw
+        };
+    }
+
+    spawnWolf(x, y){
+        const g = this.add.graphics();
+        const draw = (gfx, flip) => {
+            gfx.clear();
+            gfx.fillStyle(0x7a7a8a);
+            gfx.fillEllipse(0, 2, 22, 12);
+
+            gfx.fillStyle(0x7a7a8a);
+            gfx.fillRect(flip ? -10 : 4, -4, 6, 6);
+
+            gfx.fillStyle(0x8a8a9a);
+            gfx.fillEllipse(flip ? -14 : 14, -2, 12, 9);
+
+            gfx.fillStyle(0x9a9aaa);
+            gfx.fillEllipse(flip ? -19 : 19, 0, 7, 5);
+            gfx.fillStyle(0x222222);
+            gfx.fillCircle(flip ? -21 : 21, -1, 1);
+
+            gfx.fillStyle(0xffcc00);
+            gfx.fillCircle(flip ? -12 : 12, -4, 2);
+            gfx.fillStyle(0x000000);
+            gfx.fillCircle(flip ? -12 : 12, -4, 1);
+
+            gfx.fillStyle(0x6a6a7a);
+            gfx.fillTriangle(flip ? -11 : 9, -6, flip ? -14 : 12, -13, flip ? -8 : 16, -6);
+
+            gfx.fillStyle(0x6a6a7a);
+            gfx.fillRect(-8, 6, 4, 7);
+            gfx.fillRect(-2, 6, 4, 7);
+            gfx.fillRect(4, 6, 4, 7);
+
+            gfx.fillStyle(0x5a5a6a);
+            gfx.fillEllipse(flip ? 12 : -12, -2, 10, 5);
+        };
+        draw(g, false);
+        g.x = x;
+        g.y = y;
+
+        return{
+            gfx: g, x, y,
+            type: 'wolf',
+            hp: 60,
+            speed: Phaser.Math.Between(90, 130),
+            chasing: false,
+            attackCooldown: 0,
+            flip: false,
+            active: true,
+            draw
+        };
+    }
+    handleAttack(pointer){
+        const worldX = pointer.x + this.cameras.main.scrollX;
+        const worldY = pointer.y + this.cameras.main.scrollY;
+
+        this.animals.forEach(animal => {
+            if(!animal.active){
+                return;
+            }
+            const dx = worldX - animal.x;
+            const dy = worldY - animal.y;
+            if(Math.sqrt(dx*dx + dy*dy) < 25){
+                animal.hp -= 25;
+                if(animal.hp <= 0){
+                    animal.gfx.destroy();
+                    animal.active = false;
+                    if(animal.type === 'rabbit'){
+                        this.inventory.food += 2;
+                        this.updateUI();
+                    }
+                }
+            }
+        });
+    }
+
+    updateAnimals(){
+        const px = this.player.x;
+        const py = this.player.y;
+        const delta = this.game.loop.delta / 1000;
+
+        this.animals.forEach(animal => {
+            if(!animal.active){
+                return;
+            }
+            if(animal.type === 'rabbit'){
+                const dx = px - animal.x;
+                const dy = py - animal.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+
+                if(dist < 150){
+                    const angle = Math.atan2(dy, dx);
+                    animal.x -= Math.cos(angle) * animal.speed * delta;
+                    animal.y -= Math.sin(angle) * animal.speed * delta;
+                    animal.flip = dx > 0;
+                }else{
+                    if(!animal.wanderTimer || this.time.now > animal.wanderTimer){
+                        animal.wanderAngle = Math.random() * Math.PI * 2;
+                        animal.wanderTimer = this.time.now + Phaser.Math.Between(1500, 3500);
+                    }
+                    animal.x += Math.cos(animal.wanderAngle) * 30 * delta;
+                    animal.y += Math.sin(animal.wanderAngle) * 30 * delta;
+                }
+            }
+            if(animal.type === 'wolf'){
+                const dx = px - animal.x;
+                const dy = py - animal.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+
+                if(dist < 300){
+                    const angle = Math.atan2(dy, dx);
+                    animal.x += Math.cos(angle) * animal.speed * delta;
+                    animal.y += Math.sin(angle) * animal.speed * delta;
+                    animal.flip = dx < 0;
+
+                    if(dist < 35 && this.time.now > animal.attackCooldown){
+                        this.stats.health = Math.max(0, this.stats.health - 8);
+                        this.updateStatBars();
+                        animal.attackCooldown = this.time.now + 1000;
+                    }
+                }else{
+                    if(!animal.wanderTimer || this.time.now > animal.wanderTimer){
+                        animal.wanderAngle = Math.random() * Math.PI * 2;
+                        animal.wanderTimer = this.time.now + Phaser.Math.Between(2000, 4000);
+                    }
+                    animal.x += Math.cos(animal.wanderAngle) * 25 * delta;
+                    animal.y += Math.sin(animal.wanderAngle) * 25 * delta;
+                }
+            }
+            
+            animal.x = Phaser.Math.Clamp(animal.x, 50, this.worldWidth - 50);
+            animal.y = Phaser.Math.Clamp(animal.y, 50, this.worldHeight - 50);
+
+            animal.gfx.x = animal.x;
+            animal.gfx.y = animal.y;
+            animal.draw(animal.gfx, animal.flip);
+        });
     }
 }
