@@ -58,6 +58,12 @@ class GameScene extends Phaser.Scene {
         ).setScrollFactor(0).setDepth(11);
 
         this.fKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
+        this.cKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
+        this.oneKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE);
+        this.inventory.spear = 0;
+        this.spearDurability = 0;
+        this.craftingOpen = false;
+        this.craftingUI = null;
 
         this.stats = {
             health: 100,
@@ -294,6 +300,17 @@ class GameScene extends Phaser.Scene {
                 this.updateStatBars();
             }
         }
+        if(Phaser.Input.Keyboard.JustDown(this.cKey)){
+            this.toggleCrafting();
+        }
+        if(this.craftingOpen && this.oneKey && Phaser.Input.Keyboard.JustDown(this.oneKey)){
+            if(this.inventory.wood >= 3 && this.inventory.stone >= 2){
+                this.inventory.wood -= 3;
+                this.inventory.stone -= 2;
+                this.spearDurability += 20;
+                this.updateCraftingText();
+            }
+        }
         this.updateAnimals();
         this.updateDayNight();
     }
@@ -481,8 +498,18 @@ class GameScene extends Phaser.Scene {
         };
     }
     handleAttack(pointer){
+        if(this.spearDurability <= 0){
+            return;
+        }
+
         const worldX = pointer.x + this.cameras.main.scrollX;
         const worldY = pointer.y + this.cameras.main.scrollY;
+
+        const px = this.player.x;
+        const py = this.player.y;
+        if(Math.sqrt((worldX-px)**2 + (worldY-py)**2) > 120){
+            return;
+        }
 
         this.animals.forEach(animal => {
             if(!animal.active){
@@ -492,13 +519,18 @@ class GameScene extends Phaser.Scene {
             const dy = worldY - animal.y;
             if(Math.sqrt(dx*dx + dy*dy) < 25){
                 animal.hp -= 25;
+                this.spearDurability--;
+                this.updateCraftingText();
                 if(animal.hp <= 0){
                     animal.gfx.destroy();
                     animal.active = false;
                     if(animal.type === 'rabbit'){
                         this.inventory.food += 2;
-                        this.updateUI();
                     }
+                    if(animal.type === 'wolf'){
+                        this.inventory.food += 4;
+                    }
+                    this.updateUI();
                 }
             }
         });
@@ -565,5 +597,48 @@ class GameScene extends Phaser.Scene {
             animal.gfx.y = animal.y;
             animal.draw(animal.gfx, animal.flip);
         });
+    }
+    toggleCrafting(){
+        this.craftingOpen = !this.craftingOpen;
+        if(this.craftingOpen){
+            this.craftingUI = this.add.container(0, 0).setScrollFactor(0).setDepth(20);
+
+            const bg = this.add.rectangle(
+                window.innerWidth / 2, window.innerHeight / 2,
+                300, 200, 0x000000, 0.85
+            );
+            const title = this.add.text(
+                window.innerWidth / 2 - 120, window.innerHeight / 2 - 80,
+                '--- CRAFTING ---', {fontSize: '16px', fill: '#ffffff'}
+            );
+            this.spearRecipeText = this.add.text(
+                window.innerWidth / 2 - 120, window.innerHeight / 2 - 40,
+                this.getSpearText(),
+                {fontSize: '13px', fill: '#cccccc'}
+            );
+            const hint = this.add.text(
+                window.innerWidth / 2 - 120, window.innerHeight / 2 + 20,
+                'Press [1] to craft spear\nPress [c] to close',
+                {fontSize: '12px', fill: '#888888'}
+            );
+            this.craftingUI.add([bg, title, this.spearRecipeText, hint]);
+        }else{
+            if(this.craftingUI){
+                this.craftingUI.destroy();
+                this.craftingUI = null;
+            }
+        }
+    }
+    getSpearText(){
+        const canCraft = this.inventory.wood >= 3 && this.inventory.stone >= 2;
+        const durText = this.spearDurability > 0 ? ` (durability: ${this.spearDurability})` : '';
+        return `[1] Spear${durText}\n   3 wood + 2 stone\n   ${canCraft ? '✓ Can craft' : '✗ Not enough resources'}`;
+    }
+
+    updateCraftingText(){
+        if(this.craftingOpen && this.spearRecipeText){
+            this.spearRecipeText.setText(this.getSpearText());
+        }
+        this.updateUI();
     }
 }
