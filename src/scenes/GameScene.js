@@ -412,6 +412,44 @@ class GameScene extends Phaser.Scene {
         this.healthBar.width = (this.stats.health / 100) * 120;
         this.hungerBar.width = (this.stats.hunger / 100) * 120;
         this.thirstBar.width = (this.stats.thirst / 100) * 120;
+        if(this.stats.health <= 0){
+            this.showDeathScreen();
+        }
+    }
+    showDeathScreen(){
+        this.physics.pause();
+        this.animals.forEach(a => a.active = false);
+
+        const overlay = this.add.rectangle(
+            window.innerWidth / 2, window.innerHeight / 2,
+            window.innerWidth, window.innerHeight, 
+            0x000000, 0.85
+        ).setScrollFactor(0).setDepth(50);
+
+        this.add.text(
+            window.innerWidth / 2, window.innerHeight / 2 - 80,
+            'YOU DIED',
+            {fontSize: '48px', fill: '#ff3333', fontStyle: 'bold'}
+        ).setScrollFactor(0).setDepth(51).setOrigin(0.5);
+
+        const dayCount = Math.floor((this.time.now - this.dayStart) / this.dayDuration)
+        const killed = this.animals.filter(a => !a.active).length;
+
+        this.add.text(
+            window.innerWidth / 2, window.innerHeight / 2,
+            `Days survived: ${dayCount}\nAnimals killed: ${killed}`,
+            {fontSize: '20px', fill: '#ffffff', align: 'center'}
+        ).setScrollFactor(0).setDepth(51).setOrigin(0.5);
+
+        this.add.text(
+            window.innerWidth / 2, window.innerHeight / 2 + 100,
+            'Press R to restart',
+            {fontSize: '16px', fill: '#aaaaaa'}
+        ).setScrollFactor(0).setDepth(51).setOrigin(0.5);
+
+        this.input.keyboard.once('keydown-R', () => {
+            this.scene.restart();
+        });
     }
     updateDayNight(){
         const elapsed = (this.time.now - this.dayStart) % this.dayDuration;
