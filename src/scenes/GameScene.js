@@ -60,6 +60,8 @@ class GameScene extends Phaser.Scene {
         this.fKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
         this.cKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
         this.oneKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE);
+        this.bKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
+        this.campfires = [];
         this.inventory.spear = 0;
         this.spearDurability = 0;
         this.craftingOpen = false;
@@ -225,6 +227,11 @@ class GameScene extends Phaser.Scene {
             window.innerWidth / 2 + 110, window.innerHeight - 52,
             '🍎Food: 0', {fontSize: '16px', fill: '#ffffff'}
         );
+        this.add.text(
+            20, window.innerHeight - 30,
+            '[B] Place campfire (3 wood) - heals at night',
+            {fontSize: '11px', fill: '#aaaaaa'}
+        ).setScrollFactor(0).setDepth(10);
 
         this.uiContainer.add([this.woodText, this.stoneText, this.foodText]);
     }
@@ -367,7 +374,32 @@ class GameScene extends Phaser.Scene {
                 this.updateCraftingText();
             }
         }
+        if(Phaser.Input.Keyboard.JustDown(this.bKey)){
+            if(this.inventory.wood >= 3){
+                this.inventory.wood -= 3;
+                this.placeCampfire(this.player.x, this.player.y);
+                this.updateUI();
+            }
+        }
+        this.campfires.forEach(fire => {
+            if(!fire.active){
+                return;
+            }
+            const dx = this.player.x - fire.x;
+            const dy = this.player.y - fire.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if(dist < 80){
+                const pct = (this.time.now - this.dayStart) % this.dayDuration / this.dayDuration;
+                const isNight = pct >= 0.5;
+                if(isNight && this.stats.health < 100){
+                    this.stats.health = Math.min(100, this.stats.health + 0.05);
+                    this.updateStatBars();
+                }
+            }
+        });
+
         this.updateAnimals();
+        this.updateCampfires();
         this.updateMinimap();
         this.updateDayNight();
     }
@@ -728,6 +760,43 @@ class GameScene extends Phaser.Scene {
         const canCraft = this.inventory.wood >= 3 && this.inventory.stone >= 2;
         const durText = this.spearDurability > 0 ? ` (durability: ${this.spearDurability})` : '';
         return `[1] Spear${durText}\n   3 wood + 2 stone\n   ${canCraft ? '✓ Can craft' : '✗ Not enough resources'}`;
+    }
+
+    placeCampfire(x, y){
+        const g = this.add.graphics();
+        this.drawCampfire(g);
+        g.x = x;
+        g.y = y;
+
+        const glow = this.add.circle(x, y, 80, 0xff6600, 0.08).setDepth(4);
+
+        this.campfires.push({gfx: g, glow, x, y, active: true, flicker: 0});
+    }
+    drawCampfire(g){
+        g.clear();
+
+        g.fillStyle(0x5c3d1e);
+        g.fillRect(-10, 2, 20, 5);
+        g.fillRect(-7, -2, 5, 8);
+        g.fillRect(2, -2, 5, 8);
+
+        g.fillStyle(0xff6600);
+        g.fillTriangle(-6, 2, 6, 2, 0, -14);
+        g.fillStyle(0xffaa00);
+        g.fillTriangle(-4, 2, 4, 2, 0, -9);
+        g.fillStyle(0xffff00);
+        g.fillTriangle(-2, 2, 2, 2, 0, -5);
+    }
+    updateCampfires(){
+        this.campfires.forEach(fire => {
+            if(!fire.active){
+                return;
+            }
+            fire.flicker += 0.1;
+            const scale = 1 + Math.sin(fire.flicker) * 0.1;
+            fire.gfx.setScale(1, scale);
+            fire.glow.setAlpha(0.06 + Math.sin(fire.flicker * 1.3) * 0.03);
+        });
     }
 
     updateCraftingText(){
