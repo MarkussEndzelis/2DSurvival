@@ -35,5 +35,13 @@ window.addEventListener('resize', () => {
         scene.woodText.setPosition(window.innerWidth / 2 - 150, window.innerHeight - 52);
         scene.stoneText.setPosition(window.innerWidth / 2 - 20, window.innerHeight - 52);
         scene.foodText.setPosition(window.innerWidth / 2 + 110, window.innerHeight - 52);
+        const mapSize = 150;
+        const padding = 10;
+        scene.minimapX = window.innerWidth - mapSize - padding;
+        scene.minimapY = window.innerHeight - mapSize - padding;
+        scene.minimapBg.setPosition(
+            scene.minimapX + mapSize / 2,
+            scene.minimapY + mapSize / 2
+        );
     }
 });

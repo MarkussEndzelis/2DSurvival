@@ -71,6 +71,62 @@ class GameScene extends Phaser.Scene {
             thirst: 100
         };
         this.lastStatTick = 0;
+        this.createMinimap();
+    }
+    createMinimap(){
+        const mapSize = 150;
+        const padding = 10;
+        const x = window.innerWidth - mapSize - padding;
+        const y = window.innerHeight - mapSize - padding;
+
+        this.minimapBg = this.add.rectangle(
+            x + mapSize / 2, y + mapSize / 2,
+            mapSize, mapSize, 0x000000, 0.6
+        ).setScrollFactor(0).setDepth(15);
+
+        this.minimapGraphics = this.add.graphics().setScrollFactor(0).setDepth(16);
+
+        this.minimapDot = this.add.rectangle(
+            x, y, 4, 4, 0xffff00
+        ).setScrollFactor(0).setDepth(17);
+
+        this.minimapX = x;
+        this.minimapY = y;
+        this.minimapSize = mapSize;
+    }
+    updateMinimap(){
+        const g = this.minimapGraphics;
+        const mx = this.minimapX;
+        const my = this.minimapY;
+        const ms = this.minimapSize;
+        const scaleX = ms / this.worldWidth;
+        const scaleY = ms / this.worldHeight;
+
+        g.clear();
+
+        g.fillStyle(0x1a6b9a, 0.8);
+        this.waterBodies.forEach(lake => {
+            g.fillCircle(
+                mx + lake.x * scaleX,
+                my + lake.y * scaleY,
+                lake.r * scaleX
+            )
+        });
+        
+        this.animals.forEach(animal => {
+            if(!animal.active){
+                return;
+            }
+            g.fillStyle(animal.type === 'wolf' ? 0xff4444 : 0xffffff, 1);
+            g.fillRect(
+                mx + animal.x * scaleX - 1,
+                my + animal.y * scaleY - 1,
+                2, 2
+            );
+        });
+
+        this.minimapDot.x = mx + this.player.x * scaleX;
+        this.minimapDot.y = my + this.player.y * scaleY;
     }
     createGround(){
         this.groundGraphics = this.add.graphics();
@@ -312,6 +368,7 @@ class GameScene extends Phaser.Scene {
             }
         }
         this.updateAnimals();
+        this.updateMinimap();
         this.updateDayNight();
     }
     createStatBars(){
