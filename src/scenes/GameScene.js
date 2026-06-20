@@ -73,6 +73,8 @@ class GameScene extends Phaser.Scene {
             thirst: 100
         };
         this.lastStatTick = 0;
+        this.respawnQueue = [];
+        this.lastRespawnTick = 0;
         this.createMinimap();
     }
     createMinimap(){
@@ -173,6 +175,8 @@ class GameScene extends Phaser.Scene {
             const leaves = this.add.circle(x, y - 20, 22, 0x2d7a2d);
             const trunk = this.add.rectangle(x, y + 5, 10, 16, 0x5c3d1e);
             const body = this.add.rectangle(x, y, 10, 10, 0x000000, 0);
+            body.setData('leaves', leaves);
+            body.setData('trunk', trunk);
             this.trees.add(body);
             this.physics.add.existing(body, true);
         }
@@ -306,7 +310,10 @@ class GameScene extends Phaser.Scene {
                 const dx = this.player.x - body.x;
                 const dy = this.player.y - body.y;
                 if (Math.sqrt(dx * dx + dy * dy) < 60){
+                    body.getData('leaves').destroy();
+                    body.getData('trunk').destroy();
                     body.destroy();
+                    this.respawnQueue.push({type: 'tree', x: body.x, y: body.y, time: this.time.now + 30000});
                     this.inventory.wood += 1;
                     this.updateUI();
                 }
@@ -317,6 +324,7 @@ class GameScene extends Phaser.Scene {
                 const dy = this.player.y - body.y;
                 if(Math.sqrt(dx * dx + dy * dy) < 60){
                     body.destroy();
+                    this.respawnQueue.push({type: 'rock', x: body.x, y: body.y, time: this.time.now + 45000});
                     this.inventory.stone += 1;
                     this.updateUI();
                 }
@@ -329,6 +337,7 @@ class GameScene extends Phaser.Scene {
                 const dy = this.player.y - food.y;
                 if(Math.sqrt(dx * dx + dy * dy) < 60){
                     food.destroy();
+                    this.respawnQueue.push({type: 'food', x: food.x, y: food.y, time: this.time.now + 20000});
                     this.foodItems.splice(index, 1);
                     this.inventory.food += 1;
                     this.updateUI();
@@ -353,6 +362,10 @@ class GameScene extends Phaser.Scene {
                 this.stats.health = Math.max(0, this.stats.health - 2);
             }
             this.updateStatBars();
+            if(now - this.lastRespawnTick.lastRespawnTick > 5000){
+                this.lastRespawnTick = now;
+                this.processRespawns();
+            }
         }
 
         if(Phaser.Input.Keyboard.JustDown(this.fKey)){
@@ -447,6 +460,40 @@ class GameScene extends Phaser.Scene {
         if(this.stats.health <= 0){
             this.showDeathScreen();
         }
+    }
+
+    processRespawns(){
+        const ready = this.respawnQueue.filter(r => this.time.now >= r.time);
+        const remaining = this.respawnQueue.filter(r => this.time.now < r.time);
+        this.respawnQueue = remaining;
+
+        ready.forEach(r => {
+            if(r.type === 'tree'){
+                const x = r.x;
+                const y = r.y;
+                this.add.circle(x, y - 20, 22, 0x2d7a2d);
+                this.add.rectangle(x, y + 5, 10, 16, 0x5c3d1e);
+                const body = this.add.rectangle(x, y, 10, 10, 0x000000, 0);
+                this.trees.add(body);
+                this.physics.add.existing(body, true);
+            }
+            if(r.type === 'rock'){
+                const rock = this.add.circle(r.x, r.y, 12, 0x888888);
+                this.rocks.add(rock);
+            }
+            if(r.type === 'food'){
+                const foodTypes = [
+                    {name: 'apple', color: 0xff3333},
+                    {name: 'banana', color: 0xffee00},
+                    {name: 'berries', color: 0x9b30ff},
+                    {name: 'potato', color: 0xc8a96e},
+                ];
+                const type = Phaser.Math.RND.pick(foodTypes);
+                const sprite = this.add.circle(r.x, r.y, 7, type.color);
+                sprite.setData('type', type.name);
+                this.foodItems.push(sprite);
+            }
+        });
     }
     showDeathScreen(){
         this.physics.pause();
