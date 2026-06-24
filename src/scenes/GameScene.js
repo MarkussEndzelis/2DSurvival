@@ -39,11 +39,19 @@ class GameScene extends Phaser.Scene {
         this.inventory = {wood: 0, stone: 0, food: 0};
         this.createFood();
         this.createAnimals();
-        this.input.on('pointerdown', (pointer) => this.handleAttack(pointer));
+        this.input.on('pointerdown', (pointer) => {
+            if(this.buildMode){
+                this.placeWall(pointer);
+            }else if(this.deleteMode){
+                this.breakWall(pointer);
+            }else{
+                this.handleAttack(pointer);
+            }
+        });
         this.createUI();
         this.createStatBars();
 
-        this.dayDuration = 60000;
+        this.dayDuration = 300000;
         this.dayStart = this.time.now;
 
         this.nightOverlay = this.add.rectangle(
@@ -61,6 +69,15 @@ class GameScene extends Phaser.Scene {
         this.cKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
         this.oneKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE);
         this.bKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
+        this.vKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.V);
+        this.buildMode = false;
+        this.deleteMode = false;
+        this.walls = this.physics.add.staticGroup();
+        this.physics.add.collider(this.player, this.walls);
+        this.buildModeText = this.add.text(
+            window.innerWidth / 2, 60, '',
+            {fontSize: '14px', fill: '#ffff00'}
+        ).setScrollFactor(0).setDepth(11).setOrigin(0.5);
         this.campfires = [];
         this.inventory.spear = 0;
         this.spearDurability = 0;
@@ -147,14 +164,44 @@ class GameScene extends Phaser.Scene {
         }
     }
     createPlayer(){
+        this.playerGraphics = this.add.graphics();
+
         this.player = this.add.rectangle(
             this.worldWidth / 2,
             this.worldHeight / 2,
-            32, 32,
-            0xe8c96d
+            24, 32, 
+            0x000000, 0
         );
         this.physics.add.existing(this.player);
         this.player.body.setCollideWorldBounds(true);
+        this.drawPlayer();
+    }
+    drawPlayer(){
+        const g = this.playerGraphics;
+        g.clear();
+
+        g.fillStyle(0x5c3d1e);
+        g.fillTriangle(-12, 16, 12, 16, 0, -4);
+
+        g.fillStyle(0x6b4a26);
+        g.fillEllipse(0, 2, 28, 10);
+
+        g.fillStyle(0x5c3d1e);
+        g.fillCircle(0, -8, 10);
+
+        g.fillStyle("0xd4956a");
+        g.fillCircle(0, -8, 7);
+
+        g.fillStyle(0x222222);
+        g.fillCircle(-3, -9, 1.5);
+        g.fillCircle(3, -9, 1.5);
+
+        g.fillStyle(0x8b5e3c);
+        g.fillRect(-2, -5, 4, 1);
+
+        g.fillStyle(0x3b2a1a);
+        g.fillRect(-9, 12, 7, 5);
+        g.fillRect(2, 12, 7, 5);
     }
     
     createTrees(){
@@ -232,9 +279,9 @@ class GameScene extends Phaser.Scene {
             '🍎Food: 0', {fontSize: '16px', fill: '#ffffff'}
         );
         this.add.text(
-            20, window.innerHeight - 30,
-            '[B] Place campfire (3 wood) - heals at night',
-            {fontSize: '11px', fill: '#aaaaaa'}
+            20, window.innerHeight - 120,
+            '[E] Chop tree / Mine rock / Pick food / Drink water\n[F] Eat food\n[C] Open crafting\n[B] Place campfire (3 wood) - heals at night\n[Click] Attack animal\n[V] Cycle build/delete/normal mode',
+            {fontSize: '13px', fill: '#aaaaaa'}
         ).setScrollFactor(0).setDepth(10);
 
         this.uiContainer.add([this.woodText, this.stoneText, this.foodText]);
@@ -343,6 +390,15 @@ class GameScene extends Phaser.Scene {
                     this.updateUI();
                 }
             });
+            this.walls.getChildren().forEach(wall => {
+                const dx = this.player.x - wall.x;
+                const dy = this.player.y - wall.y;
+                if(Math.sqrt(dx*dx + dy*dy) < 60){
+                    wall.destroy();
+                    this.inventory.wood += 1;
+                    this.updateUI();
+                }
+            });
             this.waterBodies.forEach(lake => {
                 const dx = this.player.x - lake.x;
                 const dy = this.player.y - lake.y;
@@ -362,7 +418,7 @@ class GameScene extends Phaser.Scene {
                 this.stats.health = Math.max(0, this.stats.health - 2);
             }
             this.updateStatBars();
-            if(now - this.lastRespawnTick.lastRespawnTick > 5000){
+            if(now - this.lastRespawnTick > 5000){
                 this.lastRespawnTick = now;
                 this.processRespawns();
             }
@@ -394,6 +450,21 @@ class GameScene extends Phaser.Scene {
                 this.updateUI();
             }
         }
+        if(Phaser.Input.Keyboard.JustDown(this.vKey)){
+            if(!this.buildMode && !this.deleteMode){
+                this.buildMode = true;
+                this.deleteMode = false;
+                this.buildModeText.setText('BUILD MODE - Click to place wall (2 wood)');
+            }else if(this.buildMode){
+                this.buildMode = false;
+                this.deleteMode = true;
+                this.buildModeText.setText('DELETE MODE - Click a wall to remove it');
+            }else{
+                this.buildMode = false;
+                this.deleteMode = false;
+                this.buildModeText.setText('');
+            }
+        }
         this.campfires.forEach(fire => {
             if(!fire.active){
                 return;
@@ -412,6 +483,9 @@ class GameScene extends Phaser.Scene {
         });
 
         this.updateAnimals();
+        this.playerGraphics.x = this.player.x;
+        this.playerGraphics.y = this.player.y;
+        this.playerGraphics.setDepth(3);
         this.updateCampfires();
         this.updateMinimap();
         this.updateDayNight();
@@ -453,6 +527,24 @@ class GameScene extends Phaser.Scene {
             window.innerWidth / 2 + 80, 23, '💧', {fontSize: '14px'}
         ).setScrollFactor(0).setDepth(11);
     }
+    breakWall(pointer){
+        const worldX = pointer.x + this.cameras.main.scrollX;
+        const worldY = pointer.y + this.cameras.main.scrollY;
+
+        const children = this.walls.getChildren();
+        for(let i = children.length - 1; i >= 0; i--){
+            const wall = children[i];
+            const dx = worldX - wall.x;
+            const dy = worldY - wall.y;
+            if(Math.abs(dx) < 16 && Math.abs(dy) < 16){
+                wall.destroy();
+                this.inventory.wood += 1;
+                this.updateUI();
+                this.walls.refresh();
+                break;
+            }
+        }
+    }
     updateStatBars(){
         this.healthBar.width = (this.stats.health / 100) * 120;
         this.hungerBar.width = (this.stats.hunger / 100) * 120;
@@ -460,6 +552,24 @@ class GameScene extends Phaser.Scene {
         if(this.stats.health <= 0){
             this.showDeathScreen();
         }
+    }
+
+    placeWall(pointer){
+        if(this.inventory.wood < 2){
+            return;
+        }
+
+        const worldX = Math.round((pointer.x + this.cameras.main.scrollX) / 32) * 32;
+        const worldY = Math.round((pointer.y + this.cameras.main.scrollY) / 32) * 32;
+
+        this.inventory.wood -= 2;
+        this.updateUI();
+
+        const wall = this.add.rectangle(worldX, worldY, 32, 32, 0x8b6914);
+
+        this.walls.add(wall);
+
+        this.walls.refresh();
     }
 
     processRespawns(){
