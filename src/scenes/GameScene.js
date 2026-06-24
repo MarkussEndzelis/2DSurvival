@@ -601,15 +601,18 @@ class GameScene extends Phaser.Scene {
             if(r.type === 'tree'){
                 const x = r.x;
                 const y = r.y;
-                this.add.circle(x, y - 20, 22, 0x2d7a2d);
-                this.add.rectangle(x, y + 5, 10, 16, 0x5c3d1e);
+                const leaves = this.add.circle(x, y - 20, 22, 0x2d7a2d);
+                const trunk = this.add.rectangle(x, y + 5, 10, 16, 0x5c3d1e);
                 const body = this.add.rectangle(x, y, 10, 10, 0x000000, 0);
+                body.setData('leaves', leaves);
+                body.setData('trunk', trunk);
                 this.trees.add(body);
                 this.physics.add.existing(body, true);
             }
             if(r.type === 'rock'){
                 const rock = this.add.circle(r.x, r.y, 12, 0x888888);
                 this.rocks.add(rock);
+                this.rocks.refresh();
             }
             if(r.type === 'food'){
                 const foodTypes = [
