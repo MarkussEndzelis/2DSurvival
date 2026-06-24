@@ -92,6 +92,20 @@ class GameScene extends Phaser.Scene {
         this.lastStatTick = 0;
         this.respawnQueue = [];
         this.lastRespawnTick = 0;
+        this.wolfKills = 0;
+        this.wallsBuilt = 0;
+        this.bossSpawned = false;
+        this.gameWon = false;
+        this.currentQuest = 0;
+        this.quests = [
+            {desc: 'Gather 30 wood + 20 stone', done: false, check: () => this.inventory.wood >= 30 && this.inventory.stone >= 20, reward: () => {this.inventory.food += 10; this.updateUI();}},
+            {desc: 'Survive 7 nights', done: false, check: () => Math.floor((this.time.now - this.dayStart) / this.dayDuration) >= 7, reward: () => {this.spearDurability += 50; }},
+            {desc: 'Kill 15 wolves', done: false, check: () => this.wolfKills >= 15, reward: () => {this.inventory.wood += 20; this.inventory.stone += 10; this.updateUI(); }},
+            {desc: 'Build 20 walls', done: false, check: () => this.wallsBuilt >= 20, reward: () => {this.stats.health = 100; this.stats.hunger = 100; this.stats.thirst = 100; this.updateStatBars();}},
+            {desc: 'Survive 15 nights', done: false, check: () => Math.floor((this.time.now - this.dayStart) / this.dayDuration) >= 15, reward: () => {this.spawnBoss();}},
+            {desc: 'Kill the Boss', done: false, check: () => this.bossDefeated === true, reward: () => {this.showWinScreen();}},
+        ];
+        this.createQuestUI();
         this.createMinimap();
     }
     createMinimap(){
@@ -481,7 +495,10 @@ class GameScene extends Phaser.Scene {
                 }
             }
         });
-
+        this.checkQuests();
+        if(this.boss){
+            this.updateBoss();
+        }
         this.updateAnimals();
         this.playerGraphics.x = this.player.x;
         this.playerGraphics.y = this.player.y;
@@ -527,6 +544,8 @@ class GameScene extends Phaser.Scene {
             window.innerWidth / 2 + 80, 23, '💧', {fontSize: '14px'}
         ).setScrollFactor(0).setDepth(11);
     }
+
+
     breakWall(pointer){
         const worldX = pointer.x + this.cameras.main.scrollX;
         const worldY = pointer.y + this.cameras.main.scrollY;
@@ -568,6 +587,7 @@ class GameScene extends Phaser.Scene {
         const wall = this.add.rectangle(worldX, worldY, 32, 32, 0x8b6914);
 
         this.walls.add(wall);
+        this.wallsBuilt++;
 
         this.walls.refresh();
     }
@@ -813,11 +833,31 @@ class GameScene extends Phaser.Scene {
                     }
                     if(animal.type === 'wolf'){
                         this.inventory.food += 4;
+                        if(animal.type === 'wolf'){
+                            this.wolfKills++;
+                        }
                     }
                     this.updateUI();
                 }
             }
         });
+
+        if(this.boss && this.boss.active && this.spearDurability > 0){
+            const dx = worldX - this.boss.x;
+            const dy = worldY - this.boss.y;
+            if(Math.sqrt(dx*dx + dy*dy) < 40){
+                this.boss.hp -= 25;
+                this.spearDurability--;
+                if(this.boss.hp <= 0){
+                    this.boss.gfx.destroy();
+                    this.boss.active = false;
+                    this.bossDefeated = true;
+                    this.bossHpBg.destroy();
+                    this.bossHpBar.destroy();
+                    this.bossLabel.destroy();
+                }
+            }
+        }
     }
 
     updateAnimals(){
@@ -961,5 +1001,164 @@ class GameScene extends Phaser.Scene {
             this.spearRecipeText.setText(this.getSpearText());
         }
         this.updateUI();
+    }
+
+    createQuestUI(){
+        this.questbg = this.add.rectangle(
+            window.innerWidth - 160, 120, 280, 80, 0x000000, 0.7
+        ).setScrollFactor(0).setDepth(11);
+
+        this.questTitle = this.add.text(
+            window.innerWidth - 290, 90, 'QUEST:', {fontSize: '13px', fill: '#ffff00'}
+        ).setScrollFactor(0).setDepth(12);
+
+        this.questText = this.add.text(
+            window.innerWidth - 290, 108, '', {fontSize: '12px', fill: '#ffffff', wordWrap: {width: 260}}
+        ).setScrollFactor(0).setDepth(12);
+
+        this.updateQuestUI();
+    }
+    updateQuestUI(){
+        if(this.currentqUEST >= this.quests.length){
+            return;
+        }
+        const q = this.quests[this.currentQuest];
+        this.questText.setText(q.desc);
+    }
+
+    checkQuests(){
+        if(this.currentQuest >= this.quests.length){
+            return;
+        }
+        const q = this.quests[this.currentQuest];
+        if(!q.done && q.check()){
+            q.done = true;
+            q.reward();
+            this.currentQuest++;
+            this.showQuestComplete();
+            this.updateQuestUI(); 
+        }
+    }
+
+    showQuestComplete(){
+        const txt = this.add.text(
+            window.innerWidth / 2, window.innerHeight / 2 - 150, 'QUEST COMPLETE!', {fontSize: '24px', fill: '#00ff00', fontStyle: 'bold'}
+        ).setScrollFactor(0).setDepth(51).setOrigin(0.5);
+
+        this.time.delayedCall(2000, () => txt.destroy());
+    }
+
+    spawnBoss(){
+        const g = this.add.graphics();
+        const draw = (gfx) => {
+            gfx.clear();
+
+            gfx.fillStyle(0x4a3728);
+            gfx.fillEllipse(0, 5, 48, 32);
+
+            gfx.fillStyle(0x5a4535);
+            gfx.fillCircle(0, -14, 18);
+
+            gfx.fillStyle(0x4a3728);
+            gfx.fillCircle(-14, -26, 7);
+            gfx.fillCircle(14, -26, 7);
+
+            gfx.fillStyle(0xff0000);
+            gfx.fillCircle(-7, -16, 4);
+            gfx.fillCircle(7, -16, 4);
+            gfx.fillStyle(0x000000);
+            gfx.fillCircle(-7, -16, 2);
+            gfx.fillCircle(7, -16, 2);
+
+            gfx.fillStyle(0x3a2518);
+            gfx.fillEllipse(0, -8, 16, 10);
+            gfx.fillStyle(0x000000);
+            gfx.fillCircle(-3, -8, 2);
+            gfx.fillCircle(3, -8, 2);
+
+            gfx.fillStyle(0x4a3728);
+            gfx.fillRect(-18, 16, 10, 14);
+            gfx.fillRect(-6, 16, 10, 14);
+            gfx.fillRect(6, 16, 10, 14);
+        };
+        draw(g);
+        g.x = this.player.x + 300;
+        g.y = this.player.y;
+
+        this.boss = {
+            gfx: g,
+            x: g.x, y: g.y,
+            hp: 500,
+            maxHp: 500,
+            speed: 80,
+            attackCooldown: 0,
+            active: true,
+            draw
+        };
+
+        this.bossHpBg = this.add.rectangle(window.innerWidth / 2, window.innerHeight - 80, 300, 20, 0x550000).setScrollFactor(0).setDepth(11);
+        this.bossHpBar = this.add.rectangle(window.innerWidth / 2, window.innerHeight - 80, 300, 20, 0xff0000).setScrollFactor(0).setDepth(12);
+        this.bossLabel = this.add.text(window.innerWidth / 2, window.innerHeight - 100, 'BOSS', {fontSize: '14px', fill: '#ff0000'}).setScrollFactor(0).setDepth(12).setOrigin(0.5);
+    
+        const warn = this.add.text(window.innerWidth / 2, window.innerHeight / 2, 'THE BOSS HAS APPEARED!',
+            {fontSize: '28px', fill: '#ff0000', fontStyle: 'bold'}
+        ).setScrollFactor(0).setDepth(51).setOrigin(0.5);
+        this.time.delayedCall(3000, () => warn.destroy());
+    }
+
+    updateBoss(){
+        if(!this.boss || !this.boss.active){
+            return;
+        }
+
+        const dx = this.player.x - this.boss.x;
+        const dy = this.player.y - this.boss.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        const delta = this.game.loop.delta / 1000;
+        const angle = Math.atan2(dy, dx);
+
+        this.boss.x += Math.cos(angle) * this.boss.speed * delta;
+        this.boss.y += Math.sin(angle) * this.boss.speed * delta;
+
+        if(dist < 50 && this.time.now > this.boss.attackCooldown){
+            this.stats.health = Math.max(0, this.stats.health - 20);
+            this.updateStatBars();
+            this.boss.attackCooldown = this.time.now + 1500;
+        }
+
+        this.boss.gfx.x = this.boss.x;
+        this.boss.gfx.y = this.boss.y;
+        this.boss.draw(this.boss.gfx);
+
+        if(this.bossHpbar){
+            this.bossHpbar.width = (this.boss.hp / this.boss.maxHp) * 300;
+        }
+    }
+
+    showWinScreen(){
+        this.physics.pause();
+        const overlay = this.add.rectangle(
+            window.innerWidth / 2, window.innerHeight / 2,
+            window.innerWidth, window.innerHeight, 0x000000, 0.85
+        ).setScrollFactor(0).setDepth(50);
+        
+        this.add.text(
+            window.innerWidth / 2, window.innerHeight / 2 - 80,
+            'YOU WIN!', {fontSize: '48px', fill: '#ffff00', fontStyle: 'bold'}
+        ).setScrollFactor(0).setDepth(51).setOrigin(0.5);
+
+        const dayCount = Math.floor((this.time.now - this.dayStart) / this.dayDuration);
+        this.add.text(
+            window.innerWidth / 2, window.innerHeight / 2,
+            'Days survived: ${dayCount}\nWolves killed: ${this.wolfKills}',
+            {fontSize: '20px', fill: '#ffffff', align: 'center'}
+        ).setScrollFactor(0).setDepth(51).setOrigin(0.5);
+
+        this.add.text(
+            window.innerWidth / 2, window.innerHeight / 2 + 100,
+            'Press R to play again', {fontSize: '16px', fill: '#aaaaaa'}
+        ).setScrollFactor(0).setDepth(51).setOrigin(0.5);
+
+        this.input.keyboard.once('keydown-R', () => this.scene.restart());
     }
 }
